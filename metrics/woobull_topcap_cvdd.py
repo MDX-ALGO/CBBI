@@ -56,7 +56,10 @@ class WoobullMetric(BaseMetric):
         return 'Woobull Top Cap vs CVDD'
 
     def _calculate(self, df: pl.DataFrame, ax: list[Axes]):
-        df = join_left_on_date(df, _fetch_df())
+        df = join_left_on_date(df, _fetch_df()).with_columns(
+            pl.col('Top').forward_fill(),
+            pl.col('CVDD').forward_fill(),
+        )
 
         row_nr = np.arange(df.height)
         high_idx = row_nr[df.get_column('PriceHigh').to_numpy()]
