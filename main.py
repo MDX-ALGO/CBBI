@@ -45,7 +45,9 @@ def get_metrics():
 
 
 def _json_number(value: float | None, *, precision: int = 4):
-    if value is None or (isinstance(value, float) and math.isnan(value)):
+    if value is None or (
+        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+    ):
         return 'null'
 
     s = f'{value:.{precision}f}'.rstrip('0')
@@ -175,7 +177,7 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
 
         sns.lineplot(x=x, y=price, alpha=0.4, color='orange', ax=ax_out)
 
-        values = await metric.calculate(df_bitcoin, [ax_out, ax_in])
+        values, values_raw = await metric.calculate(df_bitcoin, [ax_out, ax_in])
 
         _add_common_markers(ax_out, halvings=halvings, highs=highs, lows=lows)
         _add_common_markers(ax_in, halvings=halvings, highs=highs, lows=lows)
@@ -201,13 +203,18 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
         )
 
         values = values.clip(0, 1).rename(metric.name)
-        df_bitcoin = df_bitcoin.with_columns(values)
+        values_raw = values_raw.rename(f'{metric.name}2')
+        df_bitcoin = df_bitcoin.with_columns(values, values_raw)
         metrics_cols.append(metric.name)
         metrics_descriptions.append(metric.description)
 
-    df_result = df_bitcoin.select('Date', 'Price', *metrics_cols).with_columns(
-        Confidence=pl.mean_horizontal([pl.col(c).fill_nan(None) for c in metrics_cols])
+    paired = [item for name in metrics_cols for item in (name, f'{name}2')]
+    raw_cols = [f'{name}2' for name in metrics_cols]
+    df_result = df_bitcoin.select('Date', 'Price', *paired).with_columns(
+        Confidence=pl.mean_horizontal([pl.col(c).fill_nan(None) for c in metrics_cols]),
+        Confidence2=pl.mean_horizontal([pl.col(c).fill_nan(None) for c in raw_cols]),
     )
+    df_result = df_result.select('Date', 'Price', 'Confidence', 'Confidence2', *paired)
 
     print('Generating charts…')
     plt.savefig(charts_file_path)

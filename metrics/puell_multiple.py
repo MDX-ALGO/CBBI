@@ -3,7 +3,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from metrics._common import linreg_predict
+from metrics._common import linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 
 
@@ -31,9 +31,11 @@ class PuellMetric(BaseMetric):
 
         high_model = linreg_predict(high_idx, puell_log[high_idx], row_nr)
         low_model = -1.0
+        high_model_raw = logreg_predict(high_idx, puell_log[high_idx], row_nr)
 
         x = df.get_column('Date').to_numpy()
         puell_index = (puell_log - low_model) / (high_model - low_model)
+        puell_index_raw = (puell_log - low_model) / (high_model_raw - low_model)
         y_out = np.nan_to_num(puell_index, nan=0.0)
 
         ax[0].set_title(self.description)
@@ -47,4 +49,4 @@ class PuellMetric(BaseMetric):
         sns.lineplot(x=x, y=high_model, ax=ax[1])
         sns.lineplot(x=x, y=np.full(df.height, low_model, dtype=np.float64), ax=ax[1])
 
-        return pl.Series(puell_index)
+        return pl.Series(puell_index), pl.Series(puell_index_raw)

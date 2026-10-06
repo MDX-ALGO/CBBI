@@ -3,7 +3,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from metrics._common import join_left_on_date, linreg_predict
+from metrics._common import join_left_on_date, linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 from utils import HTTP
 
@@ -72,9 +72,12 @@ class WoobullMetric(BaseMetric):
 
         high_model = linreg_predict(high_idx, woobull[high_idx], row_nr) - 0.025
         low_model = linreg_predict(low_idx, woobull[low_idx], row_nr)
+        high_raw = logreg_predict(high_idx, woobull[high_idx], row_nr) - 0.025
+        low_raw = logreg_predict(low_idx, woobull[low_idx], row_nr)
 
         x = df.get_column('Date').to_numpy()
         woobull_index = (woobull - low_model) / (high_model - low_model)
+        woobull_index_raw = (woobull - low_raw) / (high_raw - low_raw)
         y_out = np.nan_to_num(woobull_index, nan=0.0)
 
         ax[0].set_title(self.description)
@@ -88,4 +91,4 @@ class WoobullMetric(BaseMetric):
         sns.lineplot(x=x, y=high_model, ax=ax[1])
         sns.lineplot(x=x, y=low_model, ax=ax[1])
 
-        return pl.Series(woobull_index)
+        return pl.Series(woobull_index), pl.Series(woobull_index_raw)

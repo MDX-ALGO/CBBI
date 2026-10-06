@@ -3,7 +3,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from metrics._common import linreg_predict
+from metrics._common import linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 
 
@@ -46,10 +46,15 @@ class TrolololoMetric(BaseMetric):
 
         overshoot_model = linreg_predict(high_idx, high_y, row_nr)
         undershoot_model = linreg_predict(low_idx, undershoot_actual[low_idx], row_nr)
+        overshoot_raw = logreg_predict(high_idx, high_y, row_nr)
+        undershoot_raw = logreg_predict(low_idx, undershoot_actual[low_idx], row_nr)
 
         high_model = trolo_top_log + overshoot_model
         low_model = trolo_bottom_log + undershoot_model
         trolo_index = (price_log - low_model) / (high_model - low_model)
+        trolo_index_raw = (price_log - (trolo_bottom_log + undershoot_raw)) / (
+            (trolo_top_log + overshoot_raw) - (trolo_bottom_log + undershoot_raw)
+        )
 
         y_out = np.nan_to_num(trolo_index, nan=0.0)
 
@@ -64,4 +69,4 @@ class TrolololoMetric(BaseMetric):
         sns.lineplot(x=x, y=high_model, ax=ax[1])
         sns.lineplot(x=x, y=low_model, ax=ax[1])
 
-        return pl.Series(trolo_index)
+        return pl.Series(trolo_index), pl.Series(trolo_index_raw)
