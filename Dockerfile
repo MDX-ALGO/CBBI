@@ -17,4 +17,4 @@ ENV PYTHONUNBUFFERED=1 \
     MPLBACKEND=Agg \
     UV_PYTHON=/usr/local/bin/python3
 
-CMD ["uv", "run", "python", "serve_output.py"]
+CMD ["uv", "run", "python", "main.py"]

@@ -88,6 +88,18 @@ Define both variables to receive Telegram notifications about metric errors that
 - TELEGRAM_TOKEN=REPLACE_ME
 - TELEGRAM_CHAT_ID=123456
 
+### FTP_HOST, FTP_PORT, FTP_USERNAME, FTP_PASSWORD, FTP_REMOTE_DIR
+
+After a successful run, `latest.json` is uploaded with FTP explicit TLS. Leave `FTP_REMOTE_DIR` empty to store the file in the account's login directory. The upload is skipped when the host, username, or password is empty.
+
+#### Example usage
+
+- FTP_HOST=files.example.com
+- FTP_PORT=21
+- FTP_USERNAME=REPLACE_ME
+- FTP_PASSWORD=REPLACE_ME
+- FTP_REMOTE_DIR=
+
 ## Footer
 
 ### Contact me

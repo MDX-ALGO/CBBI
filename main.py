@@ -14,6 +14,7 @@ from sty import bg, ef, fg, rs
 from tqdm import tqdm
 
 from fetch_bitcoin_data import fetch_bitcoin_data
+from ftp_upload import load_dotenv, upload_json
 from metrics.mvrv_z_score import MVRVMetric
 from metrics.pi_cycle import PiCycleMetric
 from metrics.puell_multiple import PuellMetric
@@ -109,6 +110,7 @@ def _shade_metric_bounds(ax):
 
 
 async def run(json_file: str, charts_file: str, output_dir: str | None):
+    load_dotenv()
     output_dir_path = Path.cwd() if output_dir is None else Path(output_dir)
 
     json_file_path = output_dir_path / Path(json_file)
@@ -212,6 +214,7 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
     plt.close(fig)
 
     _write_columns_orient_json(df_result, json_file_path, precision=4)
+    upload_json(json_file_path)
 
     last = df_result.tail(1).row(0, named=True)
     confidence_details = {
