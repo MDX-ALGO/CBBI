@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 import time
 import traceback
 from pathlib import Path
@@ -221,7 +222,8 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
     plt.close(fig)
 
     _write_columns_orient_json(df_result, json_file_path, precision=4)
-    upload_json(json_file_path)
+    if upload_json(json_file_path) and os.getenv('RAILWAY_ENVIRONMENT'):
+        os._exit(0)
 
     last = df_result.tail(1).row(0, named=True)
     confidence_details = {

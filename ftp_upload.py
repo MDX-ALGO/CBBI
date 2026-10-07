@@ -20,14 +20,14 @@ def load_dotenv(path: Path | None = None) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
-def upload_json(path: Path) -> None:
+def upload_json(path: Path) -> bool:
     load_dotenv()
     host = os.getenv('FTP_HOST', '').strip()
     username = os.getenv('FTP_USERNAME', '').strip()
     password = os.getenv('FTP_PASSWORD', '')
     if not host or not username or not password:
         print('FTP upload skipped: FTP_HOST, FTP_USERNAME, or FTP_PASSWORD is unset')
-        return
+        return False
 
     port = int(os.getenv('FTP_PORT', '21'))
     remote_dir = os.getenv('FTP_REMOTE_DIR', '').strip()
@@ -42,8 +42,8 @@ def upload_json(path: Path) -> None:
             if attempt < _ATTEMPTS:
                 time.sleep(_RETRY_SECONDS)
             continue
-        print(f'Uploaded {path.name} to {host}')
-        return
+        print(f'Uploaded {path.name} to {host}', flush=True)
+        return True
 
     raise RuntimeError(f'FTP upload failed for {path.name}') from last_error
 
@@ -67,6 +67,8 @@ def _store(
             ftps.storbinary(f'STOR {path.name}', payload)
     finally:
         try:
+            if ftps.sock is not None:
+                ftps.sock.settimeout(5)
             ftps.quit()
         except Exception:
             ftps.close()
