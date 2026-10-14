@@ -26,6 +26,7 @@ from metrics.trolololo import TrolololoMetric
 from metrics.two_year_moving_average import TwoYearMovingAverageMetric
 from metrics.woobull_topcap_cvdd import WoobullMetric
 from utils import format_percentage, get_color
+from x_post import post_confidence_tweet
 
 
 def get_metrics():
@@ -222,10 +223,12 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
     plt.close(fig)
 
     _write_columns_orient_json(df_result, json_file_path, precision=4)
-    if upload_json(json_file_path) and os.getenv('RAILWAY_ENVIRONMENT'):
+    last = df_result.tail(1).row(0, named=True)
+    uploaded = upload_json(json_file_path)
+    post_confidence_tweet(last['Confidence'], last['Price'], last['Date'])
+    if uploaded and os.getenv('RAILWAY_ENVIRONMENT'):
         os._exit(0)
 
-    last = df_result.tail(1).row(0, named=True)
     confidence_details = {
         desc: last[name]
         for name, desc in zip(metrics_cols, metrics_descriptions, strict=True)
