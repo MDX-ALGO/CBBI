@@ -3,7 +3,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from metrics._common import linreg_predict
+from metrics._common import linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 
 
@@ -28,12 +28,17 @@ class TwoYearMovingAverageMetric(BaseMetric):
 
         overshoot_model = linreg_predict(high_idx, log_diff[high_idx], row_nr)
         undershoot_model = linreg_predict(low_idx, log_diff[low_idx], row_nr)
+        overshoot_raw = logreg_predict(high_idx, log_diff[high_idx], row_nr)
+        undershoot_raw = logreg_predict(low_idx, log_diff[low_idx], row_nr)
 
         x = df.get_column('Date').to_numpy()
         two_yma_high_model = overshoot_model + two_yma_log
         two_yma_low_model = undershoot_model + two_yma_log
         two_yma_index = (price_log - two_yma_low_model) / (
             two_yma_high_model - two_yma_low_model
+        )
+        two_yma_index_raw = (price_log - (undershoot_raw + two_yma_log)) / (
+            (overshoot_raw + two_yma_log) - (undershoot_raw + two_yma_log)
         )
         y_out = np.nan_to_num(two_yma_index, nan=0.0)
 
@@ -48,4 +53,4 @@ class TwoYearMovingAverageMetric(BaseMetric):
         sns.lineplot(x=x, y=two_yma_high_model, ax=ax[1])
         sns.lineplot(x=x, y=two_yma_low_model, ax=ax[1])
 
-        return pl.Series(two_yma_index)
+        return pl.Series(two_yma_index), pl.Series(two_yma_index_raw)

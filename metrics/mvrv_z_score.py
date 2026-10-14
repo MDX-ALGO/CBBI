@@ -4,7 +4,7 @@ import seaborn as sns
 from matplotlib.axes import Axes
 
 from api.coinsoto_api import cs_fetch
-from metrics._common import join_left_on_date, linreg_predict
+from metrics._common import join_left_on_date, linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 
 
@@ -47,9 +47,12 @@ class MVRVMetric(BaseMetric):
         mvrv = df.get_column('MVRV').to_numpy()
         high_model = linreg_predict(high_idx, mvrv[high_idx], row_nr)
         low_model = linreg_predict(low_idx, mvrv[low_idx], row_nr) + low_model_adjust
+        high_raw = logreg_predict(high_idx, mvrv[high_idx], row_nr)
+        low_raw = logreg_predict(low_idx, mvrv[low_idx], row_nr) + low_model_adjust
 
         x = df.get_column('Date').to_numpy()
         mvrv_index = (mvrv - low_model) / (high_model - low_model)
+        mvrv_index_raw = (mvrv - low_raw) / (high_raw - low_raw)
         y_out = np.nan_to_num(mvrv_index, nan=0.0)
 
         ax[0].set_title(self.description)
@@ -63,4 +66,4 @@ class MVRVMetric(BaseMetric):
         sns.lineplot(x=x, y=high_model, ax=ax[1])
         sns.lineplot(x=x, y=low_model, ax=ax[1])
 
-        return pl.Series(mvrv_index)
+        return pl.Series(mvrv_index), pl.Series(mvrv_index_raw)

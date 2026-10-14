@@ -4,7 +4,7 @@ import seaborn as sns
 from matplotlib.axes import Axes
 
 from api.coinsoto_api import cs_fetch
-from metrics._common import join_left_on_date, linreg_predict
+from metrics._common import join_left_on_date, linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 
 
@@ -40,9 +40,12 @@ class RHODLMetric(BaseMetric):
 
         high_model = linreg_predict(high_idx, rhodl_log[high_idx], row_nr)
         low_model = linreg_predict(low_idx, rhodl_log[low_idx], row_nr)
+        high_raw = logreg_predict(high_idx, rhodl_log[high_idx], row_nr)
+        low_raw = logreg_predict(low_idx, rhodl_log[low_idx], row_nr)
 
         x = df.get_column('Date').to_numpy()
         rhodl_index = (rhodl_log - low_model) / (high_model - low_model)
+        rhodl_index_raw = (rhodl_log - low_raw) / (high_raw - low_raw)
         y_out = np.nan_to_num(rhodl_index, nan=0.0)
 
         ax[0].set_title(self.description)
@@ -56,4 +59,4 @@ class RHODLMetric(BaseMetric):
         sns.lineplot(x=x, y=high_model, ax=ax[1])
         sns.lineplot(x=x, y=low_model, ax=ax[1])
 
-        return pl.Series(rhodl_index)
+        return pl.Series(rhodl_index), pl.Series(rhodl_index_raw)

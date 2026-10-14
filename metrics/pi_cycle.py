@@ -3,7 +3,7 @@ import polars as pl
 import seaborn as sns
 from matplotlib.axes import Axes
 
-from metrics._common import linreg_predict
+from metrics._common import linreg_predict, logreg_predict
 from metrics.base_metric import BaseMetric
 from utils import mark_highs_lows
 
@@ -72,9 +72,14 @@ class PiCycleMetric(BaseMetric):
         low_idx = np.flatnonzero(df.get_column('PiCycleDiffLow').to_numpy())
 
         target = np.zeros(df.height, dtype=np.float64)
+        target_raw = np.zeros(df.height, dtype=np.float64)
         if high_idx.size >= 3:
             target = np.minimum(
                 linreg_predict(high_idx, diff[high_idx], row_nr),
+                0.0,
+            )
+            target_raw = np.minimum(
+                logreg_predict(high_idx, diff[high_idx], row_nr),
                 0.0,
             )
 
@@ -92,6 +97,8 @@ class PiCycleMetric(BaseMetric):
 
         distance = np.maximum(np.maximum(target - diff, 0.0), distance_floor)
         index = 1 - distance / np.abs(target - cold_model)
+        distance_raw = np.maximum(np.maximum(target_raw - diff, 0.0), distance_floor)
+        index_raw = 1 - distance_raw / np.abs(target_raw - cold_model)
 
         x = df.get_column('Date').to_numpy()
         y_out = np.nan_to_num(index, nan=0.0)
@@ -108,4 +115,4 @@ class PiCycleMetric(BaseMetric):
         sns.lineplot(x=x, y=cold_model, ax=ax[1])
         sns.lineplot(x=x, y=target - distance_floor, ax=ax[1], linestyle='--')
 
-        return pl.Series('PiCycleIndex', index)
+        return pl.Series('PiCycleIndex', index), pl.Series('PiCycleIndex2', index_raw)

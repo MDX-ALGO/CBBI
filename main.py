@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 import time
 import traceback
 from pathlib import Path
@@ -14,6 +15,7 @@ from sty import bg, ef, fg, rs
 from tqdm import tqdm
 
 from fetch_bitcoin_data import fetch_bitcoin_data
+from ftp_upload import load_dotenv, upload_json
 from metrics.mvrv_z_score import MVRVMetric
 from metrics.pi_cycle import PiCycleMetric
 from metrics.puell_multiple import PuellMetric
@@ -24,6 +26,7 @@ from metrics.trolololo import TrolololoMetric
 from metrics.two_year_moving_average import TwoYearMovingAverageMetric
 from metrics.woobull_topcap_cvdd import WoobullMetric
 from utils import format_percentage, get_color
+from x_post import post_confidence_tweet
 
 
 def get_metrics():
@@ -44,7 +47,9 @@ def get_metrics():
 
 
 def _json_number(value: float | None, *, precision: int = 4):
-    if value is None or (isinstance(value, float) and math.isnan(value)):
+    if value is None or (
+        isinstance(value, float) and (math.isnan(value) or math.isinf(value))
+    ):
         return 'null'
 
     s = f'{value:.{precision}f}'.rstrip('0')
@@ -109,6 +114,7 @@ def _shade_metric_bounds(ax):
 
 
 async def run(json_file: str, charts_file: str, output_dir: str | None):
+    load_dotenv()
     output_dir_path = Path.cwd() if output_dir is None else Path(output_dir)
 
     json_file_path = output_dir_path / Path(json_file)
@@ -173,7 +179,7 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
 
         sns.lineplot(x=x, y=price, alpha=0.4, color='orange', ax=ax_out)
 
-        values = await metric.calculate(df_bitcoin, [ax_out, ax_in])
+        values, values_raw = await metric.calculate(df_bitcoin, [ax_out, ax_in])
 
         _add_common_markers(ax_out, halvings=halvings, highs=highs, lows=lows)
         _add_common_markers(ax_in, halvings=halvings, highs=highs, lows=lows)
@@ -199,21 +205,30 @@ async def run(json_file: str, charts_file: str, output_dir: str | None):
         )
 
         values = values.clip(0, 1).rename(metric.name)
-        df_bitcoin = df_bitcoin.with_columns(values)
+        values_raw = values_raw.rename(f'{metric.name}2')
+        df_bitcoin = df_bitcoin.with_columns(values, values_raw)
         metrics_cols.append(metric.name)
         metrics_descriptions.append(metric.description)
 
-    df_result = df_bitcoin.select('Date', 'Price', *metrics_cols).with_columns(
-        Confidence=pl.mean_horizontal([pl.col(c).fill_nan(None) for c in metrics_cols])
+    paired = [item for name in metrics_cols for item in (name, f'{name}2')]
+    raw_cols = [f'{name}2' for name in metrics_cols]
+    df_result = df_bitcoin.select('Date', 'Price', *paired).with_columns(
+        Confidence=pl.mean_horizontal([pl.col(c).fill_nan(None) for c in metrics_cols]),
+        Confidence2=pl.mean_horizontal([pl.col(c).fill_nan(None) for c in raw_cols]),
     )
+    df_result = df_result.select('Date', 'Price', 'Confidence', 'Confidence2', *paired)
 
     print('Generating charts…')
     plt.savefig(charts_file_path)
     plt.close(fig)
 
     _write_columns_orient_json(df_result, json_file_path, precision=4)
-
     last = df_result.tail(1).row(0, named=True)
+    uploaded = upload_json(json_file_path)
+    post_confidence_tweet(last['Confidence'], last['Price'], last['Date'])
+    if uploaded and os.getenv('RAILWAY_ENVIRONMENT'):
+        os._exit(0)
+
     confidence_details = {
         desc: last[name]
         for name, desc in zip(metrics_cols, metrics_descriptions, strict=True)

@@ -21,7 +21,9 @@ class BaseMetric(ABC):
         pass
 
     @abstractmethod
-    def _calculate(self, df: pl.DataFrame, ax: list[Axes]) -> pl.Series:
+    def _calculate(
+        self, df: pl.DataFrame, ax: list[Axes]
+    ) -> tuple[pl.Series, pl.Series]:
         pass
 
     def _fallback(self, df: pl.DataFrame):
@@ -45,4 +47,5 @@ class BaseMetric(ABC):
                 + f' Requesting fallback values for {self.name} (from CBBI.info) '
                 + rs.all
             )
-            return self._fallback(df)
+            fallback = self._fallback(df)
+            return fallback, fallback.rename(f'{self.name}2')

@@ -88,6 +88,41 @@ Define both variables to receive Telegram notifications about metric errors that
 - TELEGRAM_TOKEN=REPLACE_ME
 - TELEGRAM_CHAT_ID=123456
 
+### FTP_HOST, FTP_PORT, FTP_USERNAME, FTP_PASSWORD, FTP_REMOTE_DIR
+
+After a successful run, `latest.json` is uploaded with FTP explicit TLS. Leave `FTP_REMOTE_DIR` empty to store the file in the account's login directory. The upload is skipped when the host, username, or password is empty.
+
+#### Example usage
+
+- FTP_HOST=files.example.com
+- FTP_PORT=21
+- FTP_USERNAME=REPLACE_ME
+- FTP_PASSWORD=REPLACE_ME
+- FTP_REMOTE_DIR=
+
+### X_API_KEY, X_API_KEY_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET, X_POST_UTC_HOURS
+
+After a successful run, the confidence score is posted to X as `@CBBI_daily` when the four OAuth 1.0a keys are set. The tweet includes a confidence-card image and text like:
+
+```
+Daily #CBBI status update:
+
+𝐂𝐎𝐍𝐅𝐈𝐃𝐄𝐍𝐂𝐄 𝐒𝐂𝐎𝐑𝐄: 5️⃣0️⃣
+ 🗓 Oct 6th, 2026
+
+The price of #Bitcoin is $85,835
+```
+
+The post is skipped outside the hours listed in `X_POST_UTC_HOURS` (comma-separated UTC hours, default `12` so the morning cron matches the usual 7 AM EST window). Do not commit these values.
+
+#### Example usage
+
+- X_API_KEY=REPLACE_ME
+- X_API_KEY_SECRET=REPLACE_ME
+- X_ACCESS_TOKEN=REPLACE_ME
+- X_ACCESS_TOKEN_SECRET=REPLACE_ME
+- X_POST_UTC_HOURS=12
+
 ## Footer
 
 ### Contact me
