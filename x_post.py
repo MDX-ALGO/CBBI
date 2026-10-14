@@ -12,9 +12,8 @@ from urllib.parse import quote
 
 import httpx
 import matplotlib.pyplot as plt
-import numpy as np
-from matplotlib import patheffects
 from matplotlib.patches import FancyBboxPatch
+from matplotlib.transforms import Affine2D
 
 from ftp_upload import load_dotenv
 
@@ -152,21 +151,7 @@ def build_tweet_text(confidence: float, price: float, price_date: datetime) -> s
     )
 
 
-def render_confidence_card(
-    confidence: float,
-    price_date: datetime,
-    path: Path | None = None,
-) -> bytes:
-    score = ceil(confidence * 100)
-    day = _heading_date(price_date)
-    width, height = 1080, 1080
-    fig = plt.figure(figsize=(width / 100, height / 100), dpi=100)
-    ax = fig.add_axes([0, 0, 1, 1])
-    ax.set_xlim(0, width)
-    ax.set_ylim(0, height)
-    ax.axis('off')
-
-    bg = '#2f4c6c'
+def _draw_v_background(ax, width: float, height: float) -> None:
     ax.add_patch(
         FancyBboxPatch(
             (0, 0),
@@ -174,83 +159,112 @@ def render_confidence_card(
             height,
             boxstyle='square,pad=0',
             linewidth=0,
-            facecolor=bg,
+            facecolor='#2f4c6c',
+            zorder=0,
         )
     )
+    center_x = width / 2
+    # Match the site header: thin diagonals that meet in a V at the center.
+    spacing = height / 15
+    for color, x_scale in (('#26405a', 1.0), ('#395c83', -1.0)):
+        for step in range(-24, 48):
+            y0 = height + step * spacing
+            ax.plot(
+                [center_x, center_x + x_scale * width],
+                [y0, y0 - height * 0.95],
+                color=color,
+                linewidth=0.8,
+                solid_capstyle='round',
+                zorder=1,
+            )
 
-    stripe = np.zeros((height, width, 4), dtype=float)
-    yy, xx = np.mgrid[0:height, 0:width]
-    band = ((xx + yy * 0.55) // 70) % 2 == 0
-    stripe[band] = (0.15, 0.25, 0.36, 0.35)
-    ax.imshow(stripe, extent=(0, width, 0, height), origin='upper', zorder=0)
+
+def render_confidence_card(
+    confidence: float,
+    price_date: datetime,
+    path: Path | None = None,
+) -> bytes:
+    score = ceil(confidence * 100)
+    day = _heading_date(price_date)
+    # Same canvas as the existing CBBI_daily card mockup.
+    width, height = 750, 420
+    fig = plt.figure(figsize=(width / 100, height / 100), dpi=100)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, width)
+    ax.set_ylim(0, height)
+    ax.axis('off')
+    _draw_v_background(ax, width, height)
 
     face = '#ffe1c5'
     shadow = '#dd8861'
+    muted = '#8fa0b5'
+    cx = width / 2
+
     ax.text(
-        width / 2,
-        height * 0.78,
+        cx,
+        height - 57,
         'CONFIDENCE WE ARE AT THE PEAK:',
         ha='center',
         va='center',
-        fontsize=22,
+        fontsize=13,
         fontname='Bahnschrift',
         color=face,
-        zorder=2,
+        zorder=3,
     )
 
-    score_text = ax.text(
-        width / 2 - 8,
-        height * 0.48,
-        str(score),
-        ha='center',
-        va='center',
-        fontsize=280,
-        fontname='Bahnschrift',
-        fontweight='bold',
-        color=face,
-        zorder=2,
-    )
-    score_text.set_path_effects([
-        patheffects.withStroke(linewidth=18, foreground=shadow),
-        patheffects.Normal(),
-    ])
-    for offset in range(1, 9):
+    # Anchor is nudged so the drawn glyph center lands near the mockup's 196.5px.
+    score_y = height - 221
+    stretch = Affine2D().scale(1.2, 1.0).translate(cx * (1 - 1.2), 0) + ax.transData
+    for offset in range(10, 0, -1):
         ax.text(
-            width / 2 - 8 + offset * 2.2,
-            height * 0.48 - offset * 2.2,
+            cx + offset,
+            score_y - offset,
             str(score),
             ha='center',
             va='center',
-            fontsize=280,
+            fontsize=205,
             fontname='Bahnschrift',
             fontweight='bold',
             color=shadow,
-            alpha=0.9,
-            zorder=1,
+            zorder=2,
+            transform=stretch,
         )
-
     ax.text(
-        width / 2,
-        height * 0.22,
-        _format_card_date(day),
+        cx,
+        score_y,
+        str(score),
         ha='center',
         va='center',
-        fontsize=42,
+        fontsize=205,
         fontname='Bahnschrift',
         fontweight='bold',
         color=face,
-        zorder=2,
+        zorder=3,
+        transform=stretch,
+    )
+
+    ax.text(
+        cx,
+        height - 351,
+        _format_card_date(day),
+        ha='center',
+        va='center',
+        fontsize=28,
+        fontname='Bahnschrift',
+        fontweight='bold',
+        color=face,
+        zorder=3,
     )
     ax.text(
-        width / 2,
-        height * 0.08,
+        cx,
+        22,
         'CBBI.info',
         ha='center',
         va='center',
-        fontsize=18,
+        fontsize=12,
         fontname='Bahnschrift',
-        color='#8fa0b5',
-        zorder=2,
+        color=muted,
+        zorder=3,
     )
 
     buffer = io.BytesIO()
